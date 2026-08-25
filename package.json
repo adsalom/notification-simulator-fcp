@@ -1,0 +1,14 @@
+{
+  "name": "notification-fx-studio",
+  "version": "1.0.0",
+  "description": "Simulador de notificaciones animadas y transparentes para Final Cut Pro",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -l 3000 .",
+    "dev": "python3 -m http.server 3000",
+    "deploy": "npx wrangler pages deploy . --project-name=notification-fx-studio"
+  },
+  "keywords": ["final-cut-pro", "notifications", "video-editing", "chroma-key", "motion-graphics", "cloudflare-pages"],
+  "author": "Luis Tovar",
+  "license": "MIT"
+}

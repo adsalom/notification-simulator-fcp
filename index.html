@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification FX Studio | Simulador para Final Cut Pro</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="logo-container">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <h1>Notification FX Studio <span class="fcp-pill">Final Cut Pro</span></h1>
+        <p>Generador de notificaciones animadas y transparentes para edición de video</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-header" id="btn-timeline-reset" title="Reiniciar animación">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reiniciar
+      </button>
+      <button class="btn-header primary" id="btn-header-export" title="Ir a exportar para FCP">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="white"/></svg>
+        Exportar para FCP
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="studio-container">
+    
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
+      <!-- Tabs -->
+      <nav class="sidebar-tabs">
+        <button class="sidebar-tab active" data-tab="presets">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Presets
+        </button>
+        <button class="sidebar-tab" data-tab="content">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Texto
+        </button>
+        <button class="sidebar-tab" data-tab="style">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+          Estilo
+        </button>
+        <button class="sidebar-tab" data-tab="animation">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Animación
+        </button>
+        <button class="sidebar-tab" data-tab="export">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar
+        </button>
+      </nav>
+
+      <!-- Tab Content Area -->
+      <div class="tab-content-area">
+        
+        <!-- Tab 1: Presets -->
+        <div class="tab-panel active" id="panel-presets">
+          <div class="form-section">
+            <span class="section-title">Plantillas Populares</span>
+            <div class="presets-grid" id="presets-grid">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Content -->
+        <div class="tab-panel" id="panel-content">
+          <div class="form-section">
+            <span class="section-title">Contenido del Mensaje</span>
+            
+            <div class="form-group">
+              <label for="inp-app-name">Nombre de App / Servicio</label>
+              <input type="text" id="inp-app-name" class="input-text" placeholder="Ej. Mensajes, WhatsApp, Instagram" />
+            </div>
+
+            <div class="form-group">
+              <label for="inp-sender">Remitente / Título</label>
+              <input type="text" id="inp-sender" class="input-text" placeholder="Ej. Carlos, Mamá, Notificación" />
+            </div>
+
+            <div class="form-group">
+              <label for="inp-message">Cuerpo del Mensaje</label>
+              <textarea id="inp-message" placeholder="Escribe el contenido de la notificación..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="inp-time">Tiempo Relativo</label>
+              <input type="text" id="inp-time" class="input-text" placeholder="ahora, hace 2m, 14:30" />
+            </div>
+
+            <div class="toggle-row">
+              <label for="chk-verified" style="cursor: pointer;">Insignia Verificada (Check Azul)</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="chk-verified">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <span class="section-title">Icono y Avatar</span>
+            <div class="form-group">
+              <label>Iconos del Sistema</label>
+              <div class="icon-picker-row" id="icon-picker-row">
+                <!-- Rendered via JS -->
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="inp-avatar-url">URL de Avatar / Foto personalizada</label>
+              <input type="text" id="inp-avatar-url" class="input-text" placeholder="https://..." />
+            </div>
+
+            <div class="form-group">
+              <label for="file-avatar-upload">O subir foto desde tu Mac</label>
+              <input type="file" id="file-avatar-upload" class="input-text" accept="image/*" />
+            </div>
+
+            <div class="form-group">
+              <label for="inp-attachment-url">URL de Imagen Adjunta (Opcional)</label>
+              <input type="text" id="inp-attachment-url" class="input-text" placeholder="https://..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Style -->
+        <div class="tab-panel" id="panel-style">
+          <div class="form-section">
+            <span class="section-title">Apariencia Visual</span>
+
+            <div class="form-group">
+              <label for="select-theme">Tema de Color</label>
+              <select id="select-theme" class="select-input">
+                <option value="dark">Modo Oscuro (Apple Dark Glass)</option>
+                <option value="light">Modo Claro (Apple Light Glass)</option>
+                <option value="island_black">Negro Puro (Dynamic Island)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Intensidad de Desenfoque (Blur) <span class="hint" id="val-blur">24px</span></label>
+              <div class="slider-container">
+                <input type="range" id="range-blur" min="0" max="50" value="24" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Radio de Esquinas (Border Radius) <span class="hint" id="val-radius">22px</span></label>
+              <div class="slider-container">
+                <input type="range" id="range-radius" min="6" max="40" value="22" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Animation & Audio -->
+        <div class="tab-panel" id="panel-animation">
+          <div class="form-section">
+            <span class="section-title">Movimiento y Duración</span>
+
+            <div class="form-group">
+              <label for="select-animation">Tipo de Animación</label>
+              <select id="select-animation" class="select-input">
+                <option value="ios_bounce_down">iOS Rebote Elástico (Deslizar desde arriba)</option>
+                <option value="island_expand">Dynamic Island (Expansión suave)</option>
+                <option value="macos_slide_right">macOS Slide (Entrada lateral derecha)</option>
+                <option value="fade_scale">Fade & Zoom Suave</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Duración Total en Pantalla <span class="hint" id="val-duration">4.5s</span></label>
+              <div class="slider-container">
+                <input type="range" id="range-duration" min="2.0" max="10.0" step="0.5" value="4.5" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <span class="section-title">Efecto de Sonido Sincronizado</span>
+
+            <div class="form-group">
+              <label for="select-sound">Tono de Notificación</label>
+              <select id="select-sound" class="select-input">
+                <option value="apple_tritone">Apple Tri-Tone (Clásico iPhone)</option>
+                <option value="apple_ding">Apple Ding / Campana nítida</option>
+                <option value="macos_submarine">macOS Submarine / Gota de agua</option>
+                <option value="whatsapp_whistle">WhatsApp Tono / Silbido</option>
+                <option value="discord_ping">Discord Ping</option>
+                <option value="pop_soft">Pop Suave (Redes Sociales)</option>
+                <option value="pop_chime">Pop Chime / Campana aguda</option>
+                <option value="android_pop">Android Pluck Pop</option>
+              </select>
+            </div>
+
+            <button class="btn-header" id="btn-test-sound" style="justify-content: center; width: 100%; margin-top: 4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              Escuchar Sonido de Muestra
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab 5: Export Hub -->
+        <div class="tab-panel" id="panel-export">
+          <div class="fcp-export-card">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+              Exportar para Final Cut Pro
+            </h3>
+            <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+              Elige el formato ideal para tu proyecto. Puedes usar el video en pantalla verde/azul y aplicar el efecto <b>Keyer</b> en FCP con 1 clic, o exportar en PNG 4K con canal alfa.
+            </p>
+
+            <!-- Chroma Key Export (Green) -->
+            <button class="export-btn highlight" id="btn-export-green">
+              <div class="export-btn-icon">
+                <span class="color-dot green" style="width: 16px; height: 16px;"></span>
+              </div>
+              <div class="export-btn-text">
+                <h4>Video Chroma Key (Fondo Verde 60 FPS)</h4>
+                <p>Listo para arrastrar a FCP + Efecto Keyer automático</p>
+              </div>
+            </button>
+
+            <!-- Blue Screen Export -->
+            <button class="export-btn" id="btn-export-blue">
+              <div class="export-btn-icon">
+                <span class="color-dot blue" style="width: 16px; height: 16px;"></span>
+              </div>
+              <div class="export-btn-text">
+                <h4>Video Fondo Azul (Blue Screen 60 FPS)</h4>
+                <p>Ideal si la notificación contiene elementos verdes</p>
+              </div>
+            </button>
+
+            <!-- Transparent WebM Video (Alpha) -->
+            <button class="export-btn" id="btn-export-alpha">
+              <div class="export-btn-icon">
+                <span class="color-dot transparent" style="width: 16px; height: 16px;"></span>
+              </div>
+              <div class="export-btn-text">
+                <h4>Video Transparente (Canal Alfa 60 FPS)</h4>
+                <p>Video sin fondo (WebM VP9 Alpha)</p>
+              </div>
+            </button>
+
+            <!-- Transparent PNG 4K -->
+            <button class="export-btn" id="btn-export-png">
+              <div class="export-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <div class="export-btn-text">
+                <h4>Imagen PNG 4K Transparente (Alpha)</h4>
+                <p>Máxima nitidez para animar manualmente en FCP</p>
+              </div>
+            </button>
+
+            <!-- Audio Track WAV -->
+            <button class="export-btn" id="btn-export-wav">
+              <div class="export-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              </div>
+              <div class="export-btn-text">
+                <h4>Pista de Audio Sincronizada (.WAV 48kHz)</h4>
+                <p>Efecto de sonido con calidad de estudio para FCP</p>
+              </div>
+            </button>
+
+            <!-- Copy to Clipboard -->
+            <button class="export-btn" id="btn-copy-clipboard">
+              <div class="export-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              </div>
+              <div class="export-btn-text">
+                <h4>Copiar PNG al Portapapeles de Mac</h4>
+                <p>Pega instantáneamente en cualquier app de diseño</p>
+              </div>
+            </button>
+
+          </div>
+
+          <!-- Quick FCP Guide -->
+          <div class="form-section" style="margin-top: 10px;">
+            <span class="section-title">💡 Cómo usar en Final Cut Pro:</span>
+            <ol style="font-size: 11.5px; color: var(--text-secondary); padding-left: 18px; line-height: 1.6;">
+              <li>Descarga el video con <b>Fondo Verde</b> y el archivo <b>.WAV</b>.</li>
+              <li>Arrastra el video sobre tu pista principal en la línea de tiempo de FCP.</li>
+              <li>Abre el panel <b>Effects > Keying</b> y arrastra el efecto <b>Keyer</b> sobre el clip. ¡El fondo verde desaparecerá al instante!</li>
+              <li>Coloca el audio .WAV justo donde inicia la animación para un sonido perfecto.</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Main Viewport Area -->
+    <main class="viewport-area">
+      
+      <!-- Viewport Controls Toolbar -->
+      <div class="viewport-toolbar">
+        <div class="toolbar-group">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Formato:</span>
+          <button class="toolbar-btn btn-aspect active" data-ratio="16-9">16:9 Widescreen (1080p / 4K)</button>
+          <button class="toolbar-btn btn-aspect" data-ratio="9-16">9:16 Vertical (Reels / TikTok)</button>
+          <button class="toolbar-btn btn-aspect" data-ratio="1-1">1:1 Cuadrado</button>
+        </div>
+
+        <div class="toolbar-group">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Fondo de Previsualización:</span>
+          <div class="bg-picker-pills">
+            <button class="bg-pill-btn active" data-bg="bg-transparent" title="Fondo Transparente">
+              <span class="color-dot transparent"></span> Transparente
+            </button>
+            <button class="bg-pill-btn" data-bg="bg-green" title="Pantalla Verde">
+              <span class="color-dot green"></span> Verde (Keyer)
+            </button>
+            <button class="bg-pill-btn" data-bg="bg-blue" title="Pantalla Azul">
+              <span class="color-dot blue"></span> Azul
+            </button>
+            <button class="bg-pill-btn" data-bg="bg-video-mock" title="Video de Muestra">
+              <span class="color-dot video"></span> Video Real
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage Canvas Container -->
+      <div class="stage-canvas-container">
+        <div class="video-frame ratio-16-9 bg-transparent" id="video-frame">
+          <div class="frame-guides"></div>
+          <div class="safe-area-guide"></div>
+
+          <!-- Notification Wrapper for Live Animation -->
+          <div class="notification-wrapper" id="notification-wrapper">
+            <div id="notification-card-container">
+              <!-- Live rendered card here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Timeline Bar -->
+      <div class="timeline-bar">
+        <div class="timeline-controls">
+          <button class="timeline-btn" id="btn-timeline-play" title="Reproducir animación">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="timeline-track-container">
+          <div class="timeline-labels">
+            <span id="lbl-cur-time">0.0s</span>
+            <span style="color: var(--apple-green);">🔔 Sonido (0.6s)</span>
+            <span id="lbl-total-time">4.5s</span>
+          </div>
+          <div class="timeline-track" id="timeline-track">
+            <div class="timeline-progress" id="timeline-progress"></div>
+            <div class="timeline-marker sound" style="left: 13%;" title="Disparo de Sonido"></div>
+            <div class="timeline-marker" style="left: 88%;" title="Inicio de Salida"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Export Progress Modal Backdrop -->
+  <div class="export-modal-backdrop" id="export-modal-backdrop">
+    <div class="export-modal">
+      <div class="modal-spinner"></div>
+      <h3 id="modal-export-title" style="font-size: 16px; font-weight: 700; color: #fff;">Renderizando para Final Cut Pro...</h3>
+      <p style="font-size: 12px; color: var(--text-secondary);">Generando cuadros a 60 FPS con máxima calidad de color.</p>
+      
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="modal-progress-fill"></div>
+      </div>
+      <div id="modal-progress-label" style="font-size: 12px; font-family: var(--font-mono); color: var(--accent);">0%</div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="presets.js"></script>
+  <script src="audioEngine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
