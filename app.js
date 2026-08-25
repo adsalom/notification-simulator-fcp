@@ -602,39 +602,53 @@ class NotificationStudio {
   // MOTOR DE EXPORTACIÓN PARA FINAL CUT PRO
   // ====================================================
 
-  // 1. Exportación de Imagen PNG 4K con Fondo Transparente (Retina Alpha)
-  async exportPng4k() {
-    this.showExportModal('Generando Imagen PNG 4K con Canal Alfa...', 20);
-    try {
-      const card = document.querySelector('.notification-card');
-      if (!card) throw new Error('No se encontró el elemento de notificación');
+  // Captura la tarjeta HTML renderizada a un Canvas de alta resolución
+  async captureCardCanvas(scale = 3) {
+    const card = document.querySelector('.notification-card');
+    if (!card) throw new Error('No se encontró el elemento de notificación');
 
-      const scale = 3;
-      const rect = card.getBoundingClientRect();
-      const canvas = document.createElement('canvas');
-      canvas.width = (rect.width + 40) * scale;
-      canvas.height = (rect.height + 40) * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(scale, scale);
+    // Asegurar que el contenedor esté en estado visible y sin transformaciones activas
+    const wrapper = document.getElementById('notification-wrapper');
+    if (wrapper) wrapper.className = 'notification-wrapper';
 
-      const styles = Array.from(document.styleSheets)
-        .map(sheet => {
-          try { return Array.from(sheet.cssRules).map(r => r.cssText).join(' '); } catch (e) { return ''; }
-        }).join(' ');
+    // Método A: Usar html2canvas si está disponible (Pixel-Perfect DOM capture)
+    if (typeof window.html2canvas === 'function') {
+      const canvas = await window.html2canvas(card, {
+        scale: scale,
+        backgroundColor: null,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 0
+      });
+      return canvas;
+    }
 
-      const svgData = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width + 40}" height="${rect.height + 40}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml" style="padding: 20px; display: flex; align-items: center; justify-content: center;">
-              <style>${styles}</style>
-              ${card.outerHTML}
-            </div>
-          </foreignObject>
-        </svg>
-      `;
+    // Método B: Fallback vía SVG foreignObject
+    const rect = card.getBoundingClientRect();
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round((rect.width + 20) * scale);
+    canvas.height = Math.round((rect.height + 20) * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
 
-      this.updateExportProgress(60);
+    const styles = Array.from(document.styleSheets)
+      .map(sheet => {
+        try { return Array.from(sheet.cssRules).map(r => r.cssText).join(' '); } catch (e) { return ''; }
+      }).join(' ');
 
+    const svgData = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width + 20}" height="${rect.height + 20}">
+        <foreignObject width="100%" height="100%">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="padding: 10px; display: flex; align-items: center; justify-content: center;">
+            <style>${styles}</style>
+            ${card.outerHTML}
+          </div>
+        </foreignObject>
+      </svg>
+    `;
+
+    return new Promise((resolve, reject) => {
       const img = new Image();
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
@@ -642,23 +656,33 @@ class NotificationStudio {
       img.onload = () => {
         ctx.drawImage(img, 0, 0);
         URL.revokeObjectURL(url);
-
-        canvas.toBlob(blob => {
-          this.updateExportProgress(100);
-          setTimeout(() => {
-            this.hideExportModal();
-            this.downloadBlob(blob, `Notificacion_${this.state.appName}_4K_Alpha.png`);
-            this.showToast('PNG 4K transparente descargado con éxito', 'success');
-          }, 300);
-        }, 'image/png');
+        resolve(canvas);
       };
 
-      img.onerror = () => {
-        this.hideExportModal();
-        this.showToast('Error al procesar la imagen PNG', 'error');
+      img.onerror = (err) => {
+        URL.revokeObjectURL(url);
+        reject(err);
       };
 
       img.src = url;
+    });
+  }
+
+  // 1. Exportación de Imagen PNG 4K con Fondo Transparente (Retina Alpha)
+  async exportPng4k() {
+    this.showExportModal('Generando Imagen PNG 4K con Canal Alfa...', 30);
+    try {
+      const canvas = await this.captureCardCanvas(4);
+      this.updateExportProgress(80);
+
+      canvas.toBlob(blob => {
+        this.updateExportProgress(100);
+        setTimeout(() => {
+          this.hideExportModal();
+          this.downloadBlob(blob, `Notificacion_${this.state.appName}_4K_Alpha.png`);
+          this.showToast('PNG 4K transparente descargado con éxito', 'success');
+        }, 300);
+      }, 'image/png');
 
     } catch (e) {
       console.error(e);
@@ -670,19 +694,21 @@ class NotificationStudio {
   // 2. Exportación de Video a 60 FPS (Fondo Verde / Azul Chroma Key o Transparente)
   async exportVideo(bgMode) {
     const bgName = bgMode === 'green' ? 'Fondo Verde (Chroma Key)' : (bgMode === 'blue' ? 'Fondo Azul' : 'Transparente');
-    this.showExportModal(`Grabando Video a 60 FPS (${bgName})...`, 10);
+    this.showExportModal(`Preparando Render de Video 60 FPS (${bgName})...`, 15);
 
     const prevBg = this.canvasBg;
     if (bgMode === 'green') this.setCanvasBackground('bg-green');
     else if (bgMode === 'blue') this.setCanvasBackground('bg-blue');
     else this.setCanvasBackground('bg-transparent');
 
-    const frameElement = document.getElementById('video-frame');
-    const totalDurationSec = this.state.duration;
-
     try {
+      // Capturar la tarjeta con todos sus elementos internos y estilos
+      const cardCanvas = await this.captureCardCanvas(3);
+      this.updateExportProgress(30);
+
+      // Dimensiones según aspecto
       const width = this.aspectRatio === '9-16' ? 1080 : 1920;
-      const height = this.aspectRatio === '9-16' ? 1920 : 1080;
+      const height = this.aspectRatio === '9-16' ? 1920 : (this.aspectRatio === '1-1' ? 1080 : 1080);
 
       const recordCanvas = document.createElement('canvas');
       recordCanvas.width = width;
@@ -705,7 +731,7 @@ class NotificationStudio {
 
       const recorder = new MediaRecorder(stream, {
         mimeType: mimeType,
-        videoBitsPerSecond: 15000000
+        videoBitsPerSecond: 20000000
       });
 
       const chunks = [];
@@ -726,22 +752,59 @@ class NotificationStudio {
       };
 
       recorder.start();
-      this.playAnimationPreview();
 
-      const soundTimingMs = (this.state.enterDelay + this.state.soundTiming) * 1000;
+      // Dimensiones de renderizado de la tarjeta en el video
+      const targetCardWidth = this.aspectRatio === '9-16' 
+        ? Math.min(width * 0.90, 960) 
+        : (this.aspectRatio === '1-1' ? Math.min(width * 0.82, 880) : Math.min(width * 0.48, 920));
+      const targetCardHeight = targetCardWidth * (cardCanvas.height / cardCanvas.width);
+
+      // Posición de reposo de la notificación
+      let baseRestX = (width - targetCardWidth) / 2;
+      let baseRestY = this.aspectRatio === '9-16' ? height * 0.08 : height * 0.07;
+      if (this.currentPlatform === 'macos_banner') {
+        baseRestX = width - targetCardWidth - (width * 0.03);
+        baseRestY = height * 0.06;
+      }
+
+      const animType = this.state.animation || 'ios_bounce_down';
+      const totalDurationSec = this.state.duration;
+      const durationMs = totalDurationSec * 1000;
+      const enterDelayMs = (this.state.enterDelay || 0.5) * 1000;
+      const exitDelayMs = (this.state.exitDelay || 0.5) * 1000;
+      const enterDurationMs = 600;
+      const exitDurationMs = 500;
+      const exitStartMs = Math.max(enterDelayMs + 1000, durationMs - exitDelayMs);
+
+      // Funciones de Easing
+      const easeOutBack = (x) => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+      };
+      const easeInBack = (x) => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return c3 * x * x * x - c1 * x * x;
+      };
+      const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
+      const easeInCubic = (x) => x * x * x;
+
+      // Disparar sonido sincronizado
+      const soundTimingMs = enterDelayMs + (this.state.soundTiming || 0.6) * 1000;
       setTimeout(() => {
         this.audio._renderSoundToDestination(this.state.sound, audioCtx, audioDest, audioCtx.currentTime);
       }, soundTimingMs);
 
       const startTime = performance.now();
-      const durationMs = totalDurationSec * 1000;
 
-      const renderFrame = async () => {
+      const renderFrame = () => {
         const now = performance.now();
         const elapsed = now - startTime;
-        const progress = Math.min(100, Math.round((elapsed / durationMs) * 90));
+        const progress = Math.min(100, Math.round((elapsed / durationMs) * 100));
         this.updateExportProgress(progress);
 
+        // 1. Limpiar o rellenar el fondo
         if (bgMode === 'green') {
           recordCtx.fillStyle = '#00FF00';
           recordCtx.fillRect(0, 0, width, height);
@@ -752,23 +815,96 @@ class NotificationStudio {
           recordCtx.clearRect(0, 0, width, height);
         }
 
-        const card = document.querySelector('.notification-card');
-        if (card) {
-          const cardRect = card.getBoundingClientRect();
-          const frameRect = frameElement.getBoundingClientRect();
+        // 2. Calcular cinemática de la animación según el tiempo transcurrido
+        let opacity = 0;
+        let currentX = baseRestX;
+        let currentY = baseRestY;
+        let scaleX = 1;
+        let scaleY = 1;
 
-          const scaleFactor = width / frameRect.width;
-          const relativeX = (cardRect.left - frameRect.left) * scaleFactor;
-          const relativeY = (cardRect.top - frameRect.top) * scaleFactor;
-          const renderW = cardRect.width * scaleFactor;
-          const renderH = cardRect.height * scaleFactor;
+        if (elapsed < enterDelayMs) {
+          // Aún no entra
+          opacity = 0;
+        } else if (elapsed < enterDelayMs + enterDurationMs) {
+          // Fase de Entrada
+          const p = Math.min(1, Math.max(0, (elapsed - enterDelayMs) / enterDurationMs));
 
+          if (animType === 'ios_bounce_down') {
+            const eased = easeOutBack(p);
+            currentY = baseRestY - (1 - eased) * 180;
+            scaleX = scaleY = 0.85 + 0.15 * Math.min(1.05, eased);
+            opacity = Math.min(1, p * 2.5);
+          } else if (animType === 'island_expand') {
+            const eased = easeOutBack(p);
+            scaleX = scaleY = 0.35 + 0.65 * eased;
+            currentY = baseRestY - (1 - eased) * 50;
+            opacity = Math.min(1, p * 3);
+          } else if (animType === 'macos_slide_right') {
+            const eased = easeOutCubic(p);
+            currentX = baseRestX + (1 - eased) * 260;
+            opacity = p;
+          } else {
+            // fade_scale / smooth
+            const eased = easeOutCubic(p);
+            scaleX = scaleY = 0.88 + 0.12 * eased;
+            opacity = p;
+          }
+
+        } else if (elapsed < exitStartMs) {
+          // Fase de Reposo
+          opacity = 1;
+          currentX = baseRestX;
+          currentY = baseRestY;
+          scaleX = scaleY = 1;
+
+        } else if (elapsed < exitStartMs + exitDurationMs) {
+          // Fase de Salida
+          const p = Math.min(1, Math.max(0, (elapsed - exitStartMs) / exitDurationMs));
+
+          if (animType === 'ios_bounce_down') {
+            const eased = easeInBack(p);
+            currentY = baseRestY - eased * 160;
+            scaleX = scaleY = 1 - 0.15 * p;
+            opacity = Math.max(0, 1 - p);
+          } else if (animType === 'island_expand') {
+            const eased = easeInCubic(p);
+            scaleX = scaleY = Math.max(0.3, 1 - 0.7 * eased);
+            currentY = baseRestY - eased * 40;
+            opacity = Math.max(0, 1 - p);
+          } else if (animType === 'macos_slide_right') {
+            const eased = easeInCubic(p);
+            currentX = baseRestX + eased * 260;
+            opacity = Math.max(0, 1 - p);
+          } else {
+            const eased = easeInCubic(p);
+            scaleX = scaleY = Math.max(0.8, 1 - 0.2 * eased);
+            opacity = Math.max(0, 1 - p);
+          }
+
+        } else {
+          // Terminó de salir
+          opacity = 0;
+        }
+
+        // 3. Dibujar la tarjeta completa con su contenido real
+        if (opacity > 0) {
           recordCtx.save();
-          recordCtx.translate(relativeX, relativeY);
+          recordCtx.globalAlpha = Math.max(0, Math.min(1, opacity));
           
-          recordCtx.fillStyle = this.state.theme === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(30,30,30,0.92)';
-          this.roundRect(recordCtx, 0, 0, renderW, renderH, (this.state.borderRadius || 20) * scaleFactor);
-          recordCtx.fill();
+          const centerX = currentX + targetCardWidth / 2;
+          const centerY = currentY + targetCardHeight / 2;
+          
+          recordCtx.translate(centerX, centerY);
+          recordCtx.scale(scaleX, scaleY);
+          
+          recordCtx.drawImage(
+            cardCanvas, 
+            -targetCardWidth / 2, 
+            -targetCardHeight / 2, 
+            targetCardWidth, 
+            targetCardHeight
+          );
+          
           recordCtx.restore();
         }
 
@@ -805,52 +941,18 @@ class NotificationStudio {
   // 4. Copiar PNG directamente al portapapeles de macOS
   async copyPngToClipboard() {
     try {
-      const card = document.querySelector('.notification-card');
-      if (!card) return;
-
-      const rect = card.getBoundingClientRect();
-      const canvas = document.createElement('canvas');
-      canvas.width = (rect.width + 20) * 2;
-      canvas.height = (rect.height + 20) * 2;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(2, 2);
-
-      const styles = Array.from(document.styleSheets)
-        .map(sheet => {
-          try { return Array.from(sheet.cssRules).map(r => r.cssText).join(' '); } catch(e){ return ''; }
-        }).join(' ');
-
-      const svgData = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width + 20}" height="${rect.height + 20}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml" style="padding: 10px; display: flex; align-items: center; justify-content: center;">
-              <style>${styles}</style>
-              ${card.outerHTML}
-            </div>
-          </foreignObject>
-        </svg>
-      `;
-
-      const img = new Image();
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-
-      img.onload = async () => {
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        canvas.toBlob(async blob => {
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
-            this.showToast('¡Imagen PNG copiada al portapapeles!', 'success');
-          } catch (err) {
-            this.downloadBlob(blob, `Notificacion_${this.state.appName}.png`);
-            this.showToast('Descargando imagen PNG...', 'info');
-          }
-        }, 'image/png');
-      };
-      img.src = url;
+      const canvas = await this.captureCardCanvas(2);
+      canvas.toBlob(async blob => {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          this.showToast('¡Imagen PNG copiada al portapapeles!', 'success');
+        } catch (err) {
+          this.downloadBlob(blob, `Notificacion_${this.state.appName}.png`);
+          this.showToast('Descargando imagen PNG...', 'info');
+        }
+      }, 'image/png');
 
     } catch (e) {
       console.error(e);
