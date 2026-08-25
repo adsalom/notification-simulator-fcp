@@ -691,10 +691,10 @@ class NotificationStudio {
     }
   }
 
-  // 2. Exportación de Video a 60 FPS (Fondo Verde / Azul Chroma Key o Transparente)
+  // 2. Exportación de Video en formato .MP4 a 60 FPS (Fondo Verde / Azul Chroma Key o Transparente)
   async exportVideo(bgMode) {
     const bgName = bgMode === 'green' ? 'Fondo Verde (Chroma Key)' : (bgMode === 'blue' ? 'Fondo Azul' : 'Transparente');
-    this.showExportModal(`Preparando Render de Video 60 FPS (${bgName})...`, 15);
+    this.showExportModal(`Preparando Render de Video MP4 60 FPS (${bgName})...`, 10);
 
     const prevBg = this.canvasBg;
     if (bgMode === 'green') this.setCanvasBackground('bg-green');
@@ -702,58 +702,20 @@ class NotificationStudio {
     else this.setCanvasBackground('bg-transparent');
 
     try {
-      // Capturar la tarjeta con todos sus elementos internos y estilos
+      // 1. Capturar la tarjeta con todos sus elementos internos y estilos
       const cardCanvas = await this.captureCardCanvas(3);
-      this.updateExportProgress(30);
+      this.updateExportProgress(20);
 
-      // Dimensiones según aspecto
+      // Dimensiones según la relación de aspecto seleccionada
       const width = this.aspectRatio === '9-16' ? 1080 : 1920;
       const height = this.aspectRatio === '9-16' ? 1920 : (this.aspectRatio === '1-1' ? 1080 : 1080);
 
       const recordCanvas = document.createElement('canvas');
       recordCanvas.width = width;
       recordCanvas.height = height;
-      const recordCtx = recordCanvas.getContext('2d');
+      const recordCtx = recordCanvas.getContext('2d', { willReadFrequently: false });
 
-      const stream = recordCanvas.captureStream(60);
-      
-      const audioCtx = this.audio.getAudioContext();
-      const audioDest = audioCtx.createMediaStreamDestination();
-      
-      if (audioDest.stream.getAudioTracks().length > 0) {
-        stream.addTrack(audioDest.stream.getAudioTracks()[0]);
-      }
-
-      let mimeType = 'video/webm;codecs=vp9';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
-      }
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 20000000
-      });
-
-      const chunks = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const videoBlob = new Blob(chunks, { type: mimeType });
-        this.updateExportProgress(100);
-        this.setCanvasBackground(prevBg);
-
-        setTimeout(() => {
-          this.hideExportModal();
-          this.downloadBlob(videoBlob, `Notificacion_${this.state.appName}_${bgMode}_60FPS.webm`);
-          this.showToast(`Video ${bgName} listo para Final Cut Pro`, 'success');
-        }, 400);
-      };
-
-      recorder.start();
-
-      // Dimensiones de renderizado de la tarjeta en el video
+      // Dimensiones de renderizado de la tarjeta en el video final
       const targetCardWidth = this.aspectRatio === '9-16' 
         ? Math.min(width * 0.90, 960) 
         : (this.aspectRatio === '1-1' ? Math.min(width * 0.82, 880) : Math.min(width * 0.48, 920));
@@ -769,11 +731,13 @@ class NotificationStudio {
 
       const animType = this.state.animation || 'ios_bounce_down';
       const totalDurationSec = this.state.duration;
-      const durationMs = totalDurationSec * 1000;
+      const fps = 60;
+      const totalFrames = Math.round(totalDurationSec * fps);
       const enterDelayMs = (this.state.enterDelay || 0.5) * 1000;
       const exitDelayMs = (this.state.exitDelay || 0.5) * 1000;
       const enterDurationMs = 600;
       const exitDurationMs = 500;
+      const durationMs = totalDurationSec * 1000;
       const exitStartMs = Math.max(enterDelayMs + 1000, durationMs - exitDelayMs);
 
       // Funciones de Easing
@@ -790,20 +754,8 @@ class NotificationStudio {
       const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
       const easeInCubic = (x) => x * x * x;
 
-      // Disparar sonido sincronizado
-      const soundTimingMs = enterDelayMs + (this.state.soundTiming || 0.6) * 1000;
-      setTimeout(() => {
-        this.audio._renderSoundToDestination(this.state.sound, audioCtx, audioDest, audioCtx.currentTime);
-      }, soundTimingMs);
-
-      const startTime = performance.now();
-
-      const renderFrame = () => {
-        const now = performance.now();
-        const elapsed = now - startTime;
-        const progress = Math.min(100, Math.round((elapsed / durationMs) * 100));
-        this.updateExportProgress(progress);
-
+      // Función de dibujo de cada frame
+      const drawFrameAtTime = (elapsed) => {
         // 1. Limpiar o rellenar el fondo
         if (bgMode === 'green') {
           recordCtx.fillStyle = '#00FF00';
@@ -815,7 +767,7 @@ class NotificationStudio {
           recordCtx.clearRect(0, 0, width, height);
         }
 
-        // 2. Calcular cinemática de la animación según el tiempo transcurrido
+        // 2. Calcular cinemática de la animación
         let opacity = 0;
         let currentX = baseRestX;
         let currentY = baseRestY;
@@ -823,10 +775,8 @@ class NotificationStudio {
         let scaleY = 1;
 
         if (elapsed < enterDelayMs) {
-          // Aún no entra
           opacity = 0;
         } else if (elapsed < enterDelayMs + enterDurationMs) {
-          // Fase de Entrada
           const p = Math.min(1, Math.max(0, (elapsed - enterDelayMs) / enterDurationMs));
 
           if (animType === 'ios_bounce_down') {
@@ -844,21 +794,18 @@ class NotificationStudio {
             currentX = baseRestX + (1 - eased) * 260;
             opacity = p;
           } else {
-            // fade_scale / smooth
             const eased = easeOutCubic(p);
             scaleX = scaleY = 0.88 + 0.12 * eased;
             opacity = p;
           }
 
         } else if (elapsed < exitStartMs) {
-          // Fase de Reposo
           opacity = 1;
           currentX = baseRestX;
           currentY = baseRestY;
           scaleX = scaleY = 1;
 
         } else if (elapsed < exitStartMs + exitDurationMs) {
-          // Fase de Salida
           const p = Math.min(1, Math.max(0, (elapsed - exitStartMs) / exitDurationMs));
 
           if (animType === 'ios_bounce_down') {
@@ -882,7 +829,6 @@ class NotificationStudio {
           }
 
         } else {
-          // Terminó de salir
           opacity = 0;
         }
 
@@ -907,15 +853,125 @@ class NotificationStudio {
           
           recordCtx.restore();
         }
+      };
+
+      // MÉTODO 1: WebCodecs + MP4 Muxer (Genera archivo .MP4 nativo H.264 para Final Cut Pro a 60 FPS)
+      if (typeof window.Mp4Muxer !== 'undefined' && typeof window.VideoEncoder === 'function') {
+        const muxer = new window.Mp4Muxer.Muxer({
+          target: new window.Mp4Muxer.ArrayBufferTarget(),
+          video: {
+            codec: 'avc',
+            width: width,
+            height: height
+          },
+          fastStart: 'in-memory',
+          firstTimestampBehavior: 'offset'
+        });
+
+        const videoEncoder = new VideoEncoder({
+          output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+          error: (e) => console.error('VideoEncoder Error:', e)
+        });
+
+        await videoEncoder.configure({
+          codec: 'avc1.4d002a', // H.264 Main Profile
+          width: width,
+          height: height,
+          bitrate: 20_000_000,
+          framerate: fps
+        });
+
+        for (let frame = 0; frame < totalFrames; frame++) {
+          const elapsed = (frame / fps) * 1000;
+          drawFrameAtTime(elapsed);
+
+          const timestampMicros = Math.round((frame / fps) * 1_000_000);
+          const durationMicros = Math.round((1 / fps) * 1_000_000);
+          
+          const videoFrame = new VideoFrame(recordCanvas, {
+            timestamp: timestampMicros,
+            duration: durationMicros
+          });
+
+          videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
+          videoFrame.close();
+
+          if (frame % 10 === 0) {
+            const pct = 20 + Math.round((frame / totalFrames) * 75);
+            this.updateExportProgress(pct);
+            await new Promise(r => setTimeout(r, 0));
+          }
+        }
+
+        this.updateExportProgress(96);
+        await videoEncoder.flush();
+        muxer.finalize();
+
+        const mp4Buffer = muxer.target.buffer;
+        const mp4Blob = new Blob([mp4Buffer], { type: 'video/mp4' });
+
+        this.updateExportProgress(100);
+        this.setCanvasBackground(prevBg);
+
+        setTimeout(() => {
+          this.hideExportModal();
+          this.downloadBlob(mp4Blob, `Notificacion_${this.state.appName}_${bgMode}_60FPS.mp4`);
+          this.showToast(`¡Video MP4 60 FPS descargado! Listo para Final Cut Pro`, 'success');
+        }, 300);
+
+        return;
+      }
+
+      // MÉTODO 2: Fallback vía MediaRecorder si WebCodecs no estuviera disponible
+      const stream = recordCanvas.captureStream(60);
+      let mimeType = 'video/mp4;codecs=avc1';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        videoBitsPerSecond: 20000000
+      });
+
+      const chunks = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const videoBlob = new Blob(chunks, { type: mimeType });
+        this.updateExportProgress(100);
+        this.setCanvasBackground(prevBg);
+
+        setTimeout(() => {
+          this.hideExportModal();
+          this.downloadBlob(videoBlob, `Notificacion_${this.state.appName}_${bgMode}_60FPS.${ext}`);
+          this.showToast(`Video ${ext.toUpperCase()} listo para Final Cut Pro`, 'success');
+        }, 400);
+      };
+
+      recorder.start();
+      const startTime = performance.now();
+
+      const animLoop = () => {
+        const now = performance.now();
+        const elapsed = now - startTime;
+        const progress = Math.min(100, Math.round((elapsed / durationMs) * 100));
+        this.updateExportProgress(progress);
+
+        drawFrameAtTime(elapsed);
 
         if (elapsed < durationMs) {
-          requestAnimationFrame(renderFrame);
+          requestAnimationFrame(animLoop);
         } else {
           recorder.stop();
         }
       };
 
-      requestAnimationFrame(renderFrame);
+      requestAnimationFrame(animLoop);
 
     } catch (e) {
       console.error(e);

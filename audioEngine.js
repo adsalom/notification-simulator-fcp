@@ -39,6 +39,14 @@ class NotificationAudioEngine {
     return this._audioBufferToWavBlob(renderedBuffer);
   }
 
+  // Genera un AudioBuffer completo sincronizado para el video
+  async renderOfflineBuffer(soundId, totalDurationSec = 4.5, triggerTimeSec = 0.6) {
+    const sampleRate = 48000;
+    const offlineCtx = new OfflineAudioContext(2, Math.ceil(sampleRate * Math.max(1, totalDurationSec)), sampleRate);
+    this._renderSoundToDestination(soundId, offlineCtx, offlineCtx.destination, triggerTimeSec);
+    return await offlineCtx.startRendering();
+  }
+
   // Motor interno de síntesis acústica
   _renderSoundToDestination(soundId, ctx, destination, startTime) {
     const now = startTime || ctx.currentTime;
