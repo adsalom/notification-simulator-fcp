@@ -855,8 +855,33 @@ class NotificationStudio {
         }
       };
 
-      // MÉTODO 1: WebCodecs + MP4 Muxer (Genera archivo .MP4 nativo H.264 para Final Cut Pro a 60 FPS)
+      // MÉTODO 1: WebCodecs + MP4 Muxer (Genera archivo .MP4 nativo H.264 + Audio AAC 48kHz para Final Cut Pro)
       if (typeof window.Mp4Muxer !== 'undefined' && typeof window.VideoEncoder === 'function') {
+        
+        // 1. Preparar y sintetizar pista de audio AAC a 48kHz
+        let hasAudio = false;
+        let audioEncoder = null;
+        let audioBuffer = null;
+
+        const soundTimingSec = (this.state.enterDelay || 0.5) + (this.state.soundTiming || 0.6);
+
+        if (typeof window.AudioEncoder === 'function' && typeof window.AudioData === 'function') {
+          try {
+            audioBuffer = await this.audio.renderOfflineBuffer(this.state.sound, totalDurationSec, soundTimingSec);
+            const isAudioSupported = await AudioEncoder.isConfigSupported({
+              codec: 'mp4a.40.2',
+              numberOfChannels: 2,
+              sampleRate: 48000,
+              bitrate: 192000
+            });
+            if (isAudioSupported.supported) {
+              hasAudio = true;
+            }
+          } catch (err) {
+            console.warn('AudioEncoder no disponible, continuando solo video:', err);
+          }
+        }
+
         const muxer = new window.Mp4Muxer.Muxer({
           target: new window.Mp4Muxer.ArrayBufferTarget(),
           video: {
@@ -864,6 +889,11 @@ class NotificationStudio {
             width: width,
             height: height
           },
+          audio: hasAudio ? {
+            codec: 'aac',
+            numberOfChannels: 2,
+            sampleRate: 48000
+          } : undefined,
           fastStart: 'in-memory',
           firstTimestampBehavior: 'offset'
         });
@@ -881,6 +911,50 @@ class NotificationStudio {
           framerate: fps
         });
 
+        // 2. Encodear Audio AAC si está activo
+        if (hasAudio && audioBuffer) {
+          audioEncoder = new AudioEncoder({
+            output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+            error: (e) => console.error('AudioEncoder Error:', e)
+          });
+
+          await audioEncoder.configure({
+            codec: 'mp4a.40.2',
+            numberOfChannels: 2,
+            sampleRate: 48000,
+            bitrate: 192000
+          });
+
+          const totalSamples = audioBuffer.length;
+          const samplesPerFrame = 1024;
+          const leftChan = audioBuffer.getChannelData(0);
+          const rightChan = audioBuffer.getChannelData(1);
+
+          for (let offset = 0; offset < totalSamples; offset += samplesPerFrame) {
+            const frameCount = Math.min(samplesPerFrame, totalSamples - offset);
+            const interleaved = new Float32Array(frameCount * 2);
+            for (let i = 0; i < frameCount; i++) {
+              interleaved[i * 2] = leftChan[offset + i];
+              interleaved[i * 2 + 1] = rightChan[offset + i];
+            }
+
+            const audioData = new AudioData({
+              format: 'f32',
+              sampleRate: 48000,
+              numberOfFrames: frameCount,
+              numberOfChannels: 2,
+              timestamp: Math.round((offset / 48000) * 1_000_000),
+              data: interleaved
+            });
+
+            audioEncoder.encode(audioData);
+            audioData.close();
+          }
+
+          await audioEncoder.flush();
+        }
+
+        // 3. Renderizar y encodear los frames de video a 60 FPS
         for (let frame = 0; frame < totalFrames; frame++) {
           const elapsed = (frame / fps) * 1000;
           drawFrameAtTime(elapsed);
@@ -916,7 +990,7 @@ class NotificationStudio {
         setTimeout(() => {
           this.hideExportModal();
           this.downloadBlob(mp4Blob, `Notificacion_${this.state.appName}_${bgMode}_60FPS.mp4`);
-          this.showToast(`¡Video MP4 60 FPS descargado! Listo para Final Cut Pro`, 'success');
+          this.showToast(`¡Video MP4 60 FPS con Audio descargado! Listo para Final Cut Pro`, 'success');
         }, 300);
 
         return;
